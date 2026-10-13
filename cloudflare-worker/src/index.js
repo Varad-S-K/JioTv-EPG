@@ -107,6 +107,15 @@ async function refreshBatch(env) {
     }
   });
 
+  const failedChannels = batch.filter(channel =>
+    current.get(channel.id).failures >= OFFSETS.length
+  );
+  if (failedChannels.length === batch.length) {
+    throw new Error(
+      `All EPG requests failed for batch ${index}; check the Worker logs for API errors.`
+    );
+  }
+
   const saved = batch.map(c => {
     const fresh = current.get(c.id);
     const old = oldById.get(c.id);
