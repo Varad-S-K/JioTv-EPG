@@ -251,7 +251,7 @@ def main():
                         help="Do not replace output files if any channel request fails")
     args = parser.parse_args()
 
-    print(f"Loading channels from {args.input}")
+    print(f"Loading channels from {args.input}", flush=True)
     if args.input.startswith(("https://", "http://")):
         raw = request_json(args.input)
     else:
@@ -259,7 +259,7 @@ def main():
             raw = json.load(f)
 
     channels = normalize_channels(raw)
-    print(f"Found {len(channels)} channels.")
+    print(f"Found {len(channels)} channels.", flush=True)
     jobs = [(channel, offset) for channel in channels for offset in range(args.days)]
     programmes, errors = [], []
     done = 0
@@ -274,7 +274,7 @@ def main():
                 errors.append((cid, offset, error))
             if done % 25 == 0 or done == len(jobs):
                 print(f"Fetched {done}/{len(jobs)} channel-offset requests; "
-                      f"{len(programmes)} programme rows so far.")
+                      f"{len(programmes)} programme rows so far.", flush=True)
 
     error_path = args.output + ".errors.txt"
     if errors and args.fail_on_errors:
