@@ -30,6 +30,10 @@ CHANNELS_URL = (
 EPG_URL = "https://jiotv.data.cdn.jio.com/apis/v1.3/getepg/get"
 
 
+class EPGAccessDeniedError(RuntimeError):
+    pass
+
+
 def request_json(url, retries=3):
     last_error = None
     for attempt in range(retries):
@@ -47,6 +51,14 @@ def request_json(url, retries=3):
                 if response.status != 200:
                     raise RuntimeError(f"HTTP {response.status}")
                 return json.loads(response.read().decode("utf-8-sig"))
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403, 450):
+                raise EPGAccessDeniedError(
+                    f"EPG API access denied (HTTP {exc.code}) for {url}: {exc.reason}"
+                ) from exc
+            last_error = exc
+            if attempt + 1 < retries:
+                time.sleep((1.5 ** attempt) + random.random() * 0.4)
         except Exception as exc:
             last_error = exc
             if attempt + 1 < retries:
@@ -262,6 +274,7 @@ def main():
     print(f"Found {len(channels)} channels.", flush=True)
     jobs = [(channel, offset) for channel in channels for offset in range(args.days)]
     programmes, errors = [], []
+    successful_requests = 0
     done = 0
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
@@ -272,9 +285,30 @@ def main():
             programmes.extend(rows)
             if error:
                 errors.append((cid, offset, error))
+                if "EPG API access denied (HTTP 450)" in error:
+                    print(
+                        "ERROR: JioTV is rejecting requests from this runner with HTTP 450. "
+                        "The existing XML files were not changed. Use a self-hosted runner "
+                        "on a network where the JioTV API is accessible.",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    for pending in futures:
+                        pending.cancel()
+                    sys.exit(4)
+            else:
+                successful_requests += 1
             if done % 25 == 0 or done == len(jobs):
                 print(f"Fetched {done}/{len(jobs)} channel-offset requests; "
+                      f"{successful_requests} succeeded, {len(errors)} failed; "
                       f"{len(programmes)} programme rows so far.", flush=True)
+                if done == 25 and errors:
+                    for cid, offset, message in errors[:3]:
+                        print(
+                            f"Request error (channel={cid}, offset={offset}): {message}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
 
     error_path = args.output + ".errors.txt"
     if errors and args.fail_on_errors:
