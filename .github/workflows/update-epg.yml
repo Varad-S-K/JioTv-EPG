@@ -21,7 +21,7 @@ jobs:
           python-version: "3.12"
 
       - name: Build XMLTV files
-        run: python build_epg.py --fail-on-errors
+        run: python -u build_epg.py --fail-on-errors --workers 10
 
       - name: Commit updated XMLTV files
         run: |
