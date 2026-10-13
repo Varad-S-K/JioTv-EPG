@@ -1,10 +1,10 @@
-name = "jiotv-epg"
+name = "jiotv-epg-by-varad"
 main = "src/index.js"
 compatibility_date = "2026-10-12"
 
 [[kv_namespaces]]
 binding = "EPG_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "57a5737f948e401d8963a44bca65d202"
 
 [triggers]
 # 10 channels x 3 offsets = 30 Jio API calls per scheduled run, plus a few KV operations.
